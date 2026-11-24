@@ -79,6 +79,17 @@ En `Chayambuka2022.py`, la difusividad del hard carbon interpola contra `sto` po
 
 Las difusividades, OCP, conductividad del electrolito y densidades de intercambio son interpolantes. El artículo no da dependencia con la temperatura para el electrolito; las funciones reciben `T` y no la usan. Por eso una temperatura distinta de 298.15 K solo entra por Butler–Volmer y por el término entrópico.
 
+Como opción de parametrización, la interfaz permite sustituir las funciones OCP
+y las densidades de intercambio por tablas cargadas desde Excel. El OCP se
+interpola como `U(sto)`. Una tabla de intercambio se interpreta como el valor
+directo `j0(sto)` en A·m⁻² y reemplaza la función completa del conjunto. La
+función original multiplica los datos `k_n`/`k_p` por factores que dependen de
+la concentración del electrolito y de la superficie de partícula; la tabla
+directa omite esos factores. Aunque la función original recibe `T`, no lo usa,
+y la tabla tampoco define dependencia térmica. Por tanto, `j0(sto)` no es
+equivalente a reemplazar el factor `k_n`/`k_p` de la parametrización original.
+Sin tabla cargada se conserva íntegra la función Chayambuka2022.
+
 En una descarga a 1 C, el solver avisa que el interpolante `k_n` extrapola por debajo de su tabla. El aviso se muestra tal cual. No se recorta la solución para esconderlo.
 
 ## Validación

@@ -61,6 +61,16 @@ export type OcpTables = {
   positive: OcpPoint[];
 };
 
+export type ExchangeCurrentPoint = {
+  sto: number;
+  j0: number;
+};
+
+export type ExchangeCurrentTables = {
+  negative: ExchangeCurrentPoint[];
+  positive: ExchangeCurrentPoint[];
+};
+
 export type SimulateRequest = {
   model: string;
   label: string;
@@ -68,6 +78,7 @@ export type SimulateRequest = {
   experiment: ExperimentInput;
   variables: string[];
   ocp_tables?: OcpTables | null;
+  exchange_current_tables?: ExchangeCurrentTables | null;
 };
 
 export type SimulationResult = {
@@ -99,6 +110,7 @@ export type SavedConfiguration = {
   parameters: Record<string, number>;
   experiment: ExperimentInput;
   ocp_tables?: OcpTables | null;
+  exchange_current_tables?: ExchangeCurrentTables | null;
 };
 
 export type RunRecord = {

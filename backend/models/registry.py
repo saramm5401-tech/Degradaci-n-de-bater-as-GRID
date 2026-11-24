@@ -21,7 +21,7 @@ MODELS = [
             "No hay submodelos de degradación (SEI, plating, pérdida de material activo).",
             "No hay una variable de resistencia. Contact resistance [Ohm] está en el conjunto de parámetros y no entra en la expresión de Voltage [V].",
             "Corriente positiva significa descarga. Es la convención de PyBaMM.",
-            "Las funciones de OCP, difusividad, conductividad y densidad de corriente de intercambio son interpolantes del conjunto. Esta aplicación no las sustituye por números.",
+            "Las funciones de OCP y densidad de corriente de intercambio se pueden sustituir por tablas interpoladas por estequiometría. Las difusividades y la conductividad del electrolito permanecen en Chayambuka2022.",
         ],
     },
     {

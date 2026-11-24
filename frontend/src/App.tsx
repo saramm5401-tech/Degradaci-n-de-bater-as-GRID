@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { ApiError, getJson, postJson } from "./api";
 import { ChartPanel } from "./ChartPanel";
+import { ExcelCurveUpload } from "./ExcelCurveUpload";
 import type {
+  ExchangeCurrentTables,
   ExperimentInput,
   ExperimentType,
   ModelInfo,
@@ -69,6 +71,16 @@ function cloneOcpTables(tables: OcpTables | null | undefined): OcpTables | null 
   };
 }
 
+function cloneExchangeCurrentTables(
+  tables: ExchangeCurrentTables | null | undefined,
+): ExchangeCurrentTables | null {
+  if (!tables) return null;
+  return {
+    negative: (tables.negative ?? []).map((point) => ({ ...point })),
+    positive: (tables.positive ?? []).map((point) => ({ ...point })),
+  };
+}
+
 export default function App() {
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [modelId, setModelId] = useState("sodium_ion");
@@ -76,6 +88,8 @@ export default function App() {
   const [presets, setPresets] = useState<ParameterPreset[]>([]);
   const [selectedPreset, setSelectedPreset] = useState("chayambuka");
   const [ocpTables, setOcpTables] = useState<OcpTables | null>(null);
+  const [exchangeCurrentTables, setExchangeCurrentTables] =
+    useState<ExchangeCurrentTables | null>(null);
   const [variables, setVariables] = useState<VariableInfo[]>([]);
   const [unavailable, setUnavailable] = useState<Array<{ name: string; reason: string }>>([]);
   const [selectedVariables, setSelectedVariables] = useState<string[]>([]);
@@ -172,6 +186,15 @@ export default function App() {
     return { negative: ocpTables.negative, positive: ocpTables.positive };
   }
 
+  function outgoingExchangeCurrentTables(): ExchangeCurrentTables | null {
+    if (!exchangeCurrentTables) return null;
+    if (
+      exchangeCurrentTables.negative.length === 0 &&
+      exchangeCurrentTables.positive.length === 0
+    ) return null;
+    return exchangeCurrentTables;
+  }
+
   function buildRequest(label: string): SimulateRequest {
     const request: SimulateRequest = {
       model: modelId,
@@ -182,6 +205,8 @@ export default function App() {
     };
     const tables = outgoingOcpTables();
     if (tables) request.ocp_tables = tables;
+    const exchangeTables = outgoingExchangeCurrentTables();
+    if (exchangeTables) request.exchange_current_tables = exchangeTables;
     return request;
   }
 
@@ -260,6 +285,8 @@ export default function App() {
     };
     const tables = outgoingOcpTables();
     if (tables) configuration.ocp_tables = tables;
+    const exchangeTables = outgoingExchangeCurrentTables();
+    if (exchangeTables) configuration.exchange_current_tables = exchangeTables;
     return configuration;
   }
 
@@ -292,6 +319,7 @@ export default function App() {
     setDrafts(next);
     setExperiment(configuration.experiment);
     setOcpTables(cloneOcpTables(configuration.ocp_tables));
+    setExchangeCurrentTables(cloneExchangeCurrentTables(configuration.exchange_current_tables));
     setError("");
   }
 
@@ -300,12 +328,14 @@ export default function App() {
     if (id === "chayambuka") {
       setDrafts({});
       setOcpTables(null);
+      setExchangeCurrentTables(null);
       setExperiment((current) => ({ ...current, ...defaultCurrent() }));
       return;
     }
     const preset = presets.find((item) => item.id === id);
     if (!preset) {
       setOcpTables(null);
+      setExchangeCurrentTables(null);
       return;
     }
     const next: Record<string, string> = {};
@@ -315,6 +345,7 @@ export default function App() {
     }
     setDrafts(next);
     setOcpTables(cloneOcpTables(preset.ocp_tables));
+    setExchangeCurrentTables(null);
     if (preset.experiment) {
       const { current_mode, current_A, temperature_K } = preset.experiment;
       setExperiment((current) => ({
@@ -336,6 +367,59 @@ export default function App() {
   const axisOptions = axisKeys(runs.filter((run) => run.visible));
   const activeModel = models.find((model) => model.id === modelId);
   const selectedNote = presets.find((preset) => preset.id === selectedPreset)?.note ?? "";
+  const searchTerm = query.trim().toLowerCase();
+  const matchesSearch = (parameter: ParameterInfo) =>
+    `${parameter.name} ${parameter.description}`.toLowerCase().includes(searchTerm);
+  const cellParameters = parameters.filter(
+    (parameter) =>
+      parameter.category === "Celda" &&
+      parameter.name !== "Current function [A]" &&
+      matchesSearch(parameter),
+  );
+  const negativeParameters = parameters.filter(
+    (parameter) => parameter.category === "Electrodo negativo" && parameter.type === "number",
+  );
+  const positiveByName = new Map(
+    parameters
+      .filter((parameter) => parameter.category === "Electrodo positivo")
+      .map((parameter) => [parameter.name, parameter]),
+  );
+  const electrodeRows = negativeParameters
+    .map((negative) => [
+      negative,
+      positiveByName.get(negative.name.replace(/Negative/g, "Positive")),
+    ] as const)
+    .filter(([negative, positive]) => positive && (matchesSearch(negative) || matchesSearch(positive)));
+  const negativeDiffusivity = byName.get("Negative particle diffusivity [m2.s-1]");
+  const positiveDiffusivity = byName.get("Positive particle diffusivity [m2.s-1]");
+
+  function renderParameter(parameter: ParameterInfo, compact = false) {
+    return (
+      <ParameterRow
+        key={parameter.name}
+        parameter={parameter}
+        compact={compact}
+        mode={displayMode[parameter.name] ?? "si"}
+        raw={drafts[parameter.name]}
+        readOnlyValue={
+          parameter.name === "Initial temperature [K]"
+            ? experiment.temperature_K
+            : parameter.name === "Current function [A]"
+              ? signedCurrent
+              : null
+        }
+        onMode={(mode) => setDisplayMode((current) => ({ ...current, [parameter.name]: mode }))}
+        onDraft={(value) => setDrafts((current) => ({ ...current, [parameter.name]: value }))}
+        onReset={() =>
+          setDrafts((current) => {
+            const next = { ...current };
+            delete next[parameter.name];
+            return next;
+          })
+        }
+      />
+    );
+  }
 
   return (
     <main>
@@ -369,9 +453,12 @@ export default function App() {
             </select>
           </label>
           {activeModel?.notes && (
-            <ul className="notes">
-              {activeModel.notes.map((note) => <li key={note}>{note}</li>)}
-            </ul>
+            <details className="model-notes">
+              <summary>Notas del modelo</summary>
+              <ul className="notes">
+                {activeModel.notes.map((note) => <li key={note}>{note}</li>)}
+              </ul>
+            </details>
           )}
           <label className="field">
             Buscar
@@ -397,65 +484,172 @@ export default function App() {
             </button>
           </div>
           {selectedNote && <p className="meta">{selectedNote}</p>}
-          {ocpTables && (
-            <div className="ocp-blocks">
-              <OcpTableEditor
-                testId="ocp-negative"
-                title="Ánodo, hard carbon, U_n"
-                electrode="negative"
-                points={ocpTables.negative}
-                onChange={(points) =>
-                  setOcpTables((current) => (current ? { ...current, negative: points } : current))
-                }
-              />
-              <OcpTableEditor
-                testId="ocp-positive"
-                title="Cátodo, NFM, U_p"
-                electrode="positive"
-                points={ocpTables.positive}
-                onChange={(points) =>
-                  setOcpTables((current) => (current ? { ...current, positive: points } : current))
-                }
-              />
+          <section className="setup-section" aria-labelledby="cell-data-heading">
+            <h3 id="cell-data-heading">1. Datos de la celda</h3>
+            <div className="cell-parameter-grid">
+              {cellParameters.map((parameter) => (
+                <div className="cell-parameter-field" key={parameter.name}>
+                  <strong>{parameter.name}</strong>
+                  {renderParameter(parameter, true)}
+                </div>
+              ))}
             </div>
-          )}
-          {(catalogue?.categories ?? []).map((category) => {
-            const rows = parameters.filter((parameter) => {
-              if (parameter.category !== category) return false;
-              const haystack = `${parameter.name} ${parameter.description}`.toLowerCase();
-              return haystack.includes(query.trim().toLowerCase());
-            });
-            if (!rows.length) return null;
-            return (
-              <details key={category} open>
-                <summary>{category}</summary>
-                {rows.map((parameter) => (
-                  <ParameterRow
-                    key={parameter.name}
-                    parameter={parameter}
-                    mode={displayMode[parameter.name] ?? "si"}
-                    raw={drafts[parameter.name]}
-                    readOnlyValue={
-                      parameter.name === "Initial temperature [K]"
-                        ? experiment.temperature_K
-                        : parameter.name === "Current function [A]"
-                          ? signedCurrent
-                          : null
-                    }
-                    onMode={(mode) => setDisplayMode((current) => ({ ...current, [parameter.name]: mode }))}
-                    onDraft={(value) => setDrafts((current) => ({ ...current, [parameter.name]: value }))}
-                    onReset={() =>
-                      setDrafts((current) => {
-                        const next = { ...current };
-                        delete next[parameter.name];
-                        return next;
-                      })
+          </section>
+
+          <section className="setup-section" aria-labelledby="electrode-data-heading">
+            <h3 id="electrode-data-heading">2. Parámetros electroquímicos</h3>
+            <p className="meta">
+              Parámetros compartidos en una sola tabla: ánodo (electrodo negativo) y cátodo
+              (electrodo positivo).
+            </p>
+            <p className="meta">
+              Las curvas son opcionales: carga un Excel para sustituir cada función o deja la tabla
+              vacía para conservar el conjunto base.
+            </p>
+            <div className="electrode-matrix">
+              <div className="electrode-matrix-header">
+                <span>Parámetro</span>
+                <span>Ánodo</span>
+                <span>Cátodo</span>
+              </div>
+              <div className="electrode-matrix-row">
+                <strong>OCP (V)</strong>
+                <ExcelCurveUpload
+                  id="ocp-negative"
+                  title="Excel del ánodo"
+                  kind="ocp"
+                  pointCount={ocpTables?.negative.length ?? 0}
+                  onImport={(points) =>
+                    setOcpTables((current) => ({
+                      negative: points.map(({ sto, value }) => ({ sto, V: value })),
+                      positive: current?.positive ?? [],
+                    }))
+                  }
+                  onClear={() =>
+                    setOcpTables((current) =>
+                      current ? { ...current, negative: [] } : null,
+                    )
+                  }
+                />
+                <ExcelCurveUpload
+                  id="ocp-positive"
+                  title="Excel del cátodo"
+                  kind="ocp"
+                  pointCount={ocpTables?.positive.length ?? 0}
+                  onImport={(points) =>
+                    setOcpTables((current) => ({
+                      negative: current?.negative ?? [],
+                      positive: points.map(({ sto, value }) => ({ sto, V: value })),
+                    }))
+                  }
+                  onClear={() =>
+                    setOcpTables((current) =>
+                      current ? { ...current, positive: [] } : null,
+                    )
+                  }
+                />
+              </div>
+              <div className="electrode-matrix-row">
+                <strong>Difusividad</strong>
+                <span className="meta">{negativeDiffusivity?.function_summary ?? "Función del conjunto"}</span>
+                <span className="meta">{positiveDiffusivity?.function_summary ?? "Función del conjunto"}</span>
+              </div>
+              <div className="electrode-matrix-row">
+                <strong>Densidad de intercambio (A/m²)</strong>
+                <ExcelCurveUpload
+                  id="exchange-negative"
+                  title="Excel del ánodo"
+                  kind="exchange-current"
+                  pointCount={exchangeCurrentTables?.negative.length ?? 0}
+                  onImport={(points) =>
+                    setExchangeCurrentTables((current) => ({
+                      negative: points.map(({ sto, value }) => ({ sto, j0: value })),
+                      positive: current?.positive ?? [],
+                    }))
+                  }
+                  onClear={() =>
+                    setExchangeCurrentTables((current) =>
+                      current ? { ...current, negative: [] } : null,
+                    )
+                  }
+                />
+                <ExcelCurveUpload
+                  id="exchange-positive"
+                  title="Excel del cátodo"
+                  kind="exchange-current"
+                  pointCount={exchangeCurrentTables?.positive.length ?? 0}
+                  onImport={(points) =>
+                    setExchangeCurrentTables((current) => ({
+                      negative: current?.negative ?? [],
+                      positive: points.map(({ sto, value }) => ({ sto, j0: value })),
+                    }))
+                  }
+                  onClear={() =>
+                    setExchangeCurrentTables((current) =>
+                      current ? { ...current, positive: [] } : null,
+                    )
+                  }
+                />
+              </div>
+              {electrodeRows.map(([negative, positive]) => (
+                <div className="electrode-matrix-row" key={negative.name}>
+                  <strong>{negative.name.replace(/^Negative electrode |^Negative particle /, "")}</strong>
+                  {renderParameter(negative, true)}
+                  {positive && renderParameter(positive, true)}
+                </div>
+              ))}
+            </div>
+            <p className="meta">
+              Las tablas de j₀ reemplazan la función completa del modelo y se interpolan por
+              estequiometría de partícula (sto), sin los factores originales de concentración.
+              La función original recibe temperatura, pero no la usa.
+            </p>
+            {ocpTables && (
+              <details className="curve-details">
+                <summary>Ver o editar las tablas OCP cargadas</summary>
+                <div className="ocp-blocks">
+                  <OcpTableEditor
+                    testId="ocp-negative"
+                    title="Ánodo, hard carbon, U_n"
+                    electrode="negative"
+                    points={ocpTables.negative}
+                    onChange={(points) =>
+                      setOcpTables((current) => (current ? { ...current, negative: points } : current))
                     }
                   />
-                ))}
+                  <OcpTableEditor
+                    testId="ocp-positive"
+                    title="Cátodo, NFM, U_p"
+                    electrode="positive"
+                    points={ocpTables.positive}
+                    onChange={(points) =>
+                      setOcpTables((current) => (current ? { ...current, positive: points } : current))
+                    }
+                  />
+                </div>
               </details>
-            );
-          })}
+            )}
+          </section>
+
+          <details className="additional-parameters">
+            <summary>3. Otros parámetros (separador, electrolito y experimento)</summary>
+            {(catalogue?.categories ?? [])
+              .filter((category) =>
+                !["Celda", "Electrodo negativo", "Electrodo positivo"].includes(category),
+              )
+              .map((category) => {
+                const rows = parameters.filter(
+                  (parameter) => parameter.category === category && matchesSearch(parameter),
+                );
+                if (!rows.length) return null;
+                return (
+                  <details key={category}>
+                    <summary>{category}</summary>
+                    {rows.map((parameter) => renderParameter(parameter))}
+                  </details>
+                );
+              })}
+          </details>
         </section>
 
         <div className="stack">
@@ -711,29 +905,6 @@ export default function App() {
                 </button>
               )              )}
             </div>
-            {nominal && (
-              <label className="field">
-                Capacidad nominal de la batería (A·h)
-                <input
-                  data-testid="nominal-capacity"
-                  aria-label="Capacidad nominal de la batería (A·h)"
-                  type="number"
-                  step="any"
-                  min="0"
-                  value={drafts[NOMINAL_CAPACITY_PARAMETER] ?? String(nominal.original ?? "")}
-                  onChange={(event) =>
-                    setDrafts((current) => ({
-                      ...current,
-                      [NOMINAL_CAPACITY_PARAMETER]: event.target.value,
-                    }))
-                  }
-                />
-                <span className="meta">
-                  Se usa para convertir C-rate a amperios y para el límite de corriente (50 C).
-                  No cambia por sí sola la geometría ni las ecuaciones del DFN.
-                </span>
-              </label>
-            )}
             <p className="meta">
               El archivo JSON y el almacenamiento del navegador conservan la configuración.
               El servidor solo la guarda en memoria hasta que se reinicia.
@@ -760,6 +931,7 @@ function axisKeys(runs: RunRecord[]): string[] {
 
 function ParameterRow({
   parameter,
+  compact = false,
   mode,
   raw,
   readOnlyValue,
@@ -768,6 +940,7 @@ function ParameterRow({
   onReset,
 }: {
   parameter: ParameterInfo;
+  compact?: boolean;
   mode: "si" | "um";
   raw: string | undefined;
   readOnlyValue: number | null;
@@ -792,11 +965,11 @@ function ParameterRow({
       : null;
 
   return (
-    <article className="parameter" data-testid={`param-${parameter.name}`}>
-      <header>
+    <article className={`parameter${compact ? " compact" : ""}`} data-testid={`param-${parameter.name}`}>
+      {!compact && <header>
         <h3>{parameter.name}</h3>
         <span className="meta">{parameter.affects_basic_dfn ? "entra en BasicDFN" : "no cambia el DFN"}</span>
-      </header>
+      </header>}
       {parameter.type === "function" ? (
         <p className="meta">{parameter.function_summary}</p>
       ) : (
@@ -848,7 +1021,7 @@ function ParameterRow({
           )}
         </>
       )}
-      {parameter.description && <p className="meta">{parameter.description}</p>}
+      {!compact && parameter.description && <p className="meta">{parameter.description}</p>}
       {message && <p className="warn">{message}</p>}
     </article>
   );

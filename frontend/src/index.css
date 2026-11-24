@@ -1,6 +1,6 @@
 :root {
-  color: #1c1915;
-  background: #efeae2;
+  color: #18312d;
+  background: #f2f6f4;
   font-family: "Segoe UI", sans-serif;
   line-height: 1.4;
 }
@@ -15,29 +15,36 @@ button, input, select {
 }
 
 button {
-  background: #1f4e79;
+  background: #146b5d;
   color: #fff;
   border: 0;
-  border-radius: 4px;
-  padding: 0.45rem 0.75rem;
+  border-radius: 6px;
+  padding: 0.5rem 0.8rem;
   cursor: pointer;
+  transition: background-color 120ms ease, transform 120ms ease;
 }
 
-button.secondary { background: #5c564c; }
+button:hover:not(:disabled) { background: #0e5147; transform: translateY(-1px); }
+button.secondary { background: #526963; }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 
 input, select {
   background: #fff;
-  border: 1px solid #c9c0b2;
-  border-radius: 4px;
-  padding: 0.35rem 0.45rem;
+  border: 1px solid #c8d6d1;
+  border-radius: 6px;
+  padding: 0.4rem 0.5rem;
   width: 100%;
 }
 
+input:focus, select:focus, button:focus-visible {
+  outline: 2px solid #5eb49f;
+  outline-offset: 2px;
+}
+
 main {
-  max-width: 1280px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 1rem;
+  padding: 1.25rem;
 }
 
 header h1 {
@@ -50,17 +57,18 @@ header p { margin: 0; }
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(300px, 460px) minmax(0, 1fr);
-  gap: 1rem;
-  margin-top: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.1rem;
+  margin-top: 1.25rem;
   align-items: start;
 }
 
 .panel {
-  background: #f7f4ee;
-  border: 1px solid #d9d0c3;
-  border-radius: 8px;
-  padding: 0.8rem;
+  background: #fff;
+  border: 1px solid #d9e5e0;
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 4px 18px rgb(22 66 57 / 5%);
 }
 
 .panel h2 {
@@ -68,7 +76,14 @@ header p { margin: 0; }
   margin: 0 0 0.6rem;
 }
 
-.stack { display: grid; gap: 0.55rem; }
+.stack {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.8fr) minmax(0, 1.2fr);
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.stack > .panel:nth-child(2) { grid-column: 2; grid-row: 1 / span 2; }
 
 .row {
   display: grid;
@@ -81,12 +96,36 @@ label.field { display: grid; gap: 0.2rem; font-size: 0.85rem; }
 .notes { font-size: 0.88rem; }
 .notes li { margin: 0.25rem 0; }
 
+.setup-section {
+  border-top: 1px solid #e1ebe7;
+  margin-top: 1rem;
+  padding-top: 0.8rem;
+}
+
+.setup-section h3 { font-size: 1rem; margin: 0 0 0.45rem; }
+
+.cell-parameter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 0.9rem;
+}
+
+.cell-parameter-field {
+  display: grid;
+  gap: 0.35rem;
+  border-top: 1px solid #e8efec;
+  padding: 0.55rem 0;
+  min-width: 0;
+}
+
+.cell-parameter-field > strong { font-size: 0.82rem; }
+
 .parameter {
   display: grid;
   grid-template-columns: 1fr;
   gap: 0.2rem;
-  padding: 0.45rem 0;
-  border-top: 1px solid #e4ddd0;
+  padding: 0.5rem 0;
+  border-top: 1px solid #e8efec;
 }
 
 .parameter header {
@@ -97,10 +136,45 @@ label.field { display: grid; gap: 0.2rem; font-size: 0.85rem; }
 }
 
 .parameter h3 { font-size: 0.86rem; margin: 0; font-weight: 600; }
-.meta { color: #5c564c; font-size: 0.78rem; }
-.controls { display: grid; grid-template-columns: 1fr auto auto; gap: 0.35rem; }
-.warn { color: #8f2d3c; font-size: 0.78rem; margin: 0; }
-.ok { color: #2f6f4e; }
+.meta { color: #5d706b; font-size: 0.78rem; }
+.controls { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 0.35rem; }
+.warn { color: #a2303f; font-size: 0.78rem; margin: 0; }
+.ok { color: #287459; }
+
+.parameter.compact {
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.parameter.compact .controls { grid-template-columns: minmax(0, 1fr) auto auto; }
+.parameter.compact input, .parameter.compact select { min-width: 0; }
+.parameter.compact .meta { font-size: 0.72rem; }
+
+.electrode-matrix {
+  border: 1px solid #dce8e3;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.electrode-matrix-header, .electrode-matrix-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) repeat(2, minmax(0, 1.2fr));
+  gap: 0.7rem;
+  align-items: start;
+  padding: 0.6rem 0.7rem;
+}
+
+.electrode-matrix-header {
+  background: #eaf3ef;
+  color: #34554d;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.electrode-matrix-row { border-top: 1px solid #e8efec; }
+.electrode-matrix-row > strong { padding-top: 0.38rem; font-size: 0.82rem; }
+.electrode-matrix-row > .meta { padding-top: 0.35rem; }
 
 .ocp-blocks { display: grid; gap: 0.55rem; }
 
@@ -129,6 +203,15 @@ label.field { display: grid; gap: 0.2rem; font-size: 0.85rem; }
 }
 
 .ocp-head span { font-size: 0.78rem; color: #5c564c; }
+.curve-details, .additional-parameters { margin-top: 0.7rem; }
+
+.excel-upload { display: grid; gap: 0.3rem; min-width: 0; }
+.excel-upload .field { font-size: 0.75rem; }
+.excel-upload input[type="file"] { font-size: 0.72rem; padding: 0.25rem; }
+.excel-column-pickers { display: grid; gap: 0.3rem; }
+.excel-column-pickers .field { font-size: 0.7rem; }
+.excel-column-pickers button { justify-self: start; font-size: 0.75rem; }
+.excel-column-pickers .meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .chart { width: 100%; height: 460px; }
 .runs { display: flex; flex-wrap: wrap; gap: 0.5rem; }
@@ -136,18 +219,32 @@ label.field { display: grid; gap: 0.2rem; font-size: 0.85rem; }
 
 .toolbar { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .error {
-  background: #f8e8e6;
-  border: 1px solid #e3b2ac;
+  background: #fff0ef;
+  border: 1px solid #e6aaa3;
   padding: 0.5rem;
-  border-radius: 4px;
+  border-radius: 6px;
   white-space: pre-wrap;
 }
 
 details { margin-top: 0.4rem; }
 summary { cursor: pointer; }
 
-@media (max-width: 900px) {
-  .layout { grid-template-columns: 1fr; }
+@media (max-width: 1020px) {
+  .stack { grid-template-columns: 1fr; }
+  .stack > .panel:nth-child(2) { grid-column: auto; grid-row: auto; }
+  .cell-parameter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .chart { height: 360px; }
+}
+
+@media (max-width: 720px) {
+  main { padding: 0.75rem; }
+  .cell-parameter-grid { grid-template-columns: 1fr; }
+  .electrode-matrix-header, .electrode-matrix-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    padding: 0.55rem;
+  }
+  .electrode-matrix-header span:first-child { display: none; }
+  .electrode-matrix-row > strong { grid-column: 1 / -1; padding: 0; }
   .row { grid-template-columns: 1fr; }
 }

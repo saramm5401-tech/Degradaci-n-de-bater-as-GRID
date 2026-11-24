@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from backend.errors import AppError
 from backend.models.registry import MODELS, get_model_info
 from backend.parameters.catalogue import list_parameters
+from backend.parameters.exchange_current_tables import validate_exchange_current_tables
 from backend.parameters.ocp_tables import validate_ocp_tables
 from backend.parameters.presets import list_presets
 from backend.simulation.runner import simulate, variable_catalogue
@@ -33,6 +34,7 @@ class SimulateIn(BaseModel):
     variables: list[str] | None = None
     label: str | None = None
     ocp_tables: dict | None = None
+    exchange_current_tables: dict | None = None
 
 
 class CompareIn(BaseModel):
@@ -44,6 +46,7 @@ class ValidateIn(BaseModel):
     parameters: dict[str, Any] = Field(default_factory=dict)
     experiment: ExperimentIn | None = None
     ocp_tables: dict | None = None
+    exchange_current_tables: dict | None = None
 
 
 class ConfigurationIn(BaseModel):
@@ -52,6 +55,7 @@ class ConfigurationIn(BaseModel):
     parameters: dict[str, Any] = Field(default_factory=dict)
     experiment: ExperimentIn
     ocp_tables: dict | None = None
+    exchange_current_tables: dict | None = None
 
 
 def _check(body: ValidateIn) -> dict:
@@ -64,6 +68,7 @@ def _check(body: ValidateIn) -> dict:
         errors.extend(exp_errors)
         warnings.extend(exp_warnings)
     errors.extend(validate_ocp_tables(body.ocp_tables))
+    errors.extend(validate_exchange_current_tables(body.exchange_current_tables))
     return {"valid": not errors, "errors": errors, "warnings": warnings}
 
 
@@ -113,6 +118,7 @@ def post_simulate(body: SimulateIn):
         body.variables,
         body.label,
         ocp_tables=body.ocp_tables,
+        exchange_current_tables=body.exchange_current_tables,
     )
 
 
@@ -133,6 +139,7 @@ def post_compare(body: CompareIn):
                 case.variables,
                 label,
                 ocp_tables=case.ocp_tables,
+                exchange_current_tables=case.exchange_current_tables,
             )
         )
     return {"cases": results}

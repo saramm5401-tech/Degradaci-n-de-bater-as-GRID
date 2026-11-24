@@ -26,14 +26,16 @@ NON_INCREASING = {
 }
 
 
-def _validate(parameters=None, ocp_tables=None):
+def _validate(parameters=None, ocp_tables=None, exchange_current_tables=None):
     payload = {"model": "sodium_ion", "parameters": parameters or {}}
     if ocp_tables is not None:
         payload["ocp_tables"] = ocp_tables
+    if exchange_current_tables is not None:
+        payload["exchange_current_tables"] = exchange_current_tables
     return client.post("/api/parameters/validate", json=payload)
 
 
-def _simulate(ocp_tables=None, parameters=None):
+def _simulate(ocp_tables=None, parameters=None, exchange_current_tables=None):
     return client.post(
         "/api/simulate",
         json={
@@ -42,6 +44,7 @@ def _simulate(ocp_tables=None, parameters=None):
             "experiment": EXPERIMENT,
             "variables": ["Voltage [V]"],
             "ocp_tables": ocp_tables,
+            "exchange_current_tables": exchange_current_tables,
         },
     )
 
@@ -67,6 +70,21 @@ def test_validate_accepts_canonical_tables():
     response = _validate(ocp_tables=EAFIT_OCP_TABLES)
     assert response.status_code == 200
     assert response.json()["valid"] is True
+
+
+def test_validate_rejects_invalid_exchange_current_tables():
+    response = _validate(
+        exchange_current_tables={
+            "negative": [
+                {"sto": 0.0, "j0": 1.0},
+                {"sto": 0.0, "j0": 0.0},
+            ]
+        }
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["valid"] is False
+    assert any("exchange_current_tables" in item for item in body["errors"])
 
 
 def test_validate_accumulates_override_and_ocp_errors():
@@ -105,8 +123,15 @@ def test_simulate_refuses_non_increasing_sto():
 def test_simulate_forwards_ocp_tables_to_runner(monkeypatch):
     captured = {}
 
-    def fake_prepare(_model_id, _overrides, _experiment, ocp_tables=None):
+    def fake_prepare(
+        _model_id,
+        _overrides,
+        _experiment,
+        ocp_tables=None,
+        exchange_current_tables=None,
+    ):
         captured["ocp_tables"] = ocp_tables
+        captured["exchange_current_tables"] = exchange_current_tables
         return None, ["stop"], []
 
     monkeypatch.setattr(runner, "prepare", fake_prepare)
@@ -114,6 +139,26 @@ def test_simulate_forwards_ocp_tables_to_runner(monkeypatch):
     response = _simulate(ocp_tables=tables)
     assert response.status_code == 422
     assert captured["ocp_tables"] == tables
+
+
+def test_simulate_forwards_exchange_current_tables_to_runner(monkeypatch):
+    captured = {}
+
+    def fake_prepare(
+        _model_id,
+        _overrides,
+        _experiment,
+        ocp_tables=None,
+        exchange_current_tables=None,
+    ):
+        captured["exchange_current_tables"] = exchange_current_tables
+        return None, ["stop"], []
+
+    monkeypatch.setattr(runner, "prepare", fake_prepare)
+    tables = {"negative": [{"sto": 0.0, "j0": 1.0}, {"sto": 1.0, "j0": 5.0}]}
+    response = _simulate(exchange_current_tables=tables)
+    assert response.status_code == 422
+    assert captured["exchange_current_tables"] == tables
 
 
 def test_numeric_ocp_override_is_still_rejected():

@@ -11,6 +11,11 @@ import pybamm
 from backend.errors import AppError
 from backend.models.registry import require_implemented
 from backend.parameters.catalogue import default_parameter_values
+from backend.parameters.exchange_current_tables import (
+    ELECTRODES as EXCHANGE_CURRENT_ELECTRODES,
+    exchange_current_interpolant,
+    validate_exchange_current_tables,
+)
 from backend.parameters.ocp_tables import (
     ELECTRODES,
     ocp_interpolant,
@@ -71,13 +76,20 @@ def _current_symbol(spec: dict):
     return current
 
 
-def prepare(model_id: str, overrides: dict, experiment: dict, ocp_tables=None):
+def prepare(
+    model_id: str,
+    overrides: dict,
+    experiment: dict,
+    ocp_tables=None,
+    exchange_current_tables=None,
+):
     require_implemented(model_id)
     merged, errors, warnings_out = validate_overrides(overrides or {})
     spec, exp_errors, exp_warnings = validate_experiment(experiment or {}, merged)
     errors.extend(exp_errors)
     warnings_out.extend(exp_warnings)
     errors.extend(validate_ocp_tables(ocp_tables))
+    errors.extend(validate_exchange_current_tables(exchange_current_tables))
     if errors or spec is None:
         return None, errors, warnings_out
 
@@ -103,6 +115,17 @@ def prepare(model_id: str, overrides: dict, experiment: dict, ocp_tables=None):
                 ocp_updates[key] = ocp_interpolant(points)
     if ocp_updates:
         parameter_values.update(ocp_updates)
+
+    exchange_current_updates = {}
+    if isinstance(exchange_current_tables, dict):
+        for electrode, key in EXCHANGE_CURRENT_ELECTRODES.items():
+            points = exchange_current_tables.get(electrode)
+            if points:
+                exchange_current_updates[key] = exchange_current_interpolant(
+                    points, electrode
+                )
+    if exchange_current_updates:
+        parameter_values.update(exchange_current_updates)
 
     return (parameter_values, spec, merged), errors, warnings_out
 
@@ -144,9 +167,14 @@ def simulate(
     variables: list[str] | None = None,
     label: str | None = None,
     ocp_tables=None,
+    exchange_current_tables=None,
 ) -> dict:
     prepared, errors, warning_messages = prepare(
-        model_id, overrides, experiment, ocp_tables=ocp_tables
+        model_id,
+        overrides,
+        experiment,
+        ocp_tables=ocp_tables,
+        exchange_current_tables=exchange_current_tables,
     )
     if prepared is None:
         raise AppError("La configuración no es válida.", status_code=422, details=errors)

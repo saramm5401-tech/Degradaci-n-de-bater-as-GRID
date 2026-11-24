@@ -17,9 +17,9 @@ El agregado EAFIT aplica overrides numéricos sobre
 Las curvas OCP del agregado EAFIT son las de hard carbon (U_n) y NFM (U_p), no
 la curva NVPF de Chayambuka2022: cuando se envían las tablas `ocp_tables` con la
 simulación, esas curvas sustituyen a las funciones OCP del conjunto base. Las
-demás funciones (difusividad y densidad de intercambio) no se sustituyen. La
-geometría de la celda sigue siendo manual: no se inventa ni se deduce de la
-capacidad nominal.
+difusividades no se sustituyen. La densidad de intercambio también puede
+sustituirse opcionalmente con `exchange_current_tables`. La geometría de la
+celda sigue siendo manual: no se inventa ni se deduce de la capacidad nominal.
 
 Sus valores salen de la columna Celda EAFIT de la hoja de parámetros, en las
 filas anteriores a «Datos adicionales»: capacidad nominal 75 A·h, resistencia
@@ -136,13 +136,13 @@ de que una simulación termine no elimina ese aviso.
 
 ## Parámetros que no se pueden modificar o que no conviene interpretar como controles físicos
 
-### No editables en esta interfaz
+### Funciones no editables como escalares
 
 - Los parámetros que PyBaMM entrega como funciones (OCP, difusividades,
   conductividad del electrolito y densidades de intercambio) no aceptan ser
-  sustituidos por un escalar. Modificar esas curvas requiere una función
-  compatible con PyBaMM, los dominios y unidades correctos, y datos que la
-  respalden.
+  sustituidos por un escalar. OCP y densidad de intercambio se pueden
+  reemplazar con las tablas descritas abajo; difusividades y conductividad
+  quedan como funciones del conjunto base.
 - `Current function [A]` e `Initial temperature [K]` son controlados por las
   condiciones del experimento. El backend rechaza sobrescribirlos también
   dentro del mapa `parameters`.
@@ -190,6 +190,26 @@ los resultados. No recorta ni ajusta la curva para ocultarlo.
 Una advertencia de extrapolación indica que se está usando la función fuera de
 su tabla de datos, no necesariamente que el solver haya fallado. Aun cuando el
 solver termine, las predicciones en esa región requieren cautela.
+
+## Tablas importadas desde Excel
+
+La interfaz permite cargar una hoja Excel independiente para el OCP y para la
+densidad de intercambio de cada electrodo. Se lee la primera hoja; la primera
+fila debe contener encabezados y se eligen las columnas de estequiometría y de
+la propiedad a interpolar. Se admiten `.xlsx` y `.xls` de hasta 25 MB, al menos
+dos pares numéricos y estequiometría estrictamente creciente. La densidad de
+intercambio debe ser positiva. Sin tabla para un electrodo se conserva la
+función de Chayambuka2022.
+
+La tabla de OCP sustituye el OCP del electrodo y se envía en `ocp_tables`.
+La tabla de densidad de intercambio representa directamente `j0(sto)` en
+A·m⁻² y sustituye la función Butler–Volmer completa de ese electrodo; por
+tanto, se omiten los factores originales de concentración del electrolito y
+de la superficie de partícula. La función original recibe `T`, pero no la usa;
+la tabla tampoco define una dependencia térmica. Se envía en
+`exchange_current_tables`. La difusividad sigue siendo la función publicada
+del conjunto base. Las tablas se conservan al guardar y cargar una configuración
+JSON.
 
 ## Errores del solver
 
