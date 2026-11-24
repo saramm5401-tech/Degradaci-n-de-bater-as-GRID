@@ -2,6 +2,18 @@ import { useEffect, useMemo, useState } from "react";
 import { ApiError, getJson, postJson } from "./api";
 import { ChartPanel } from "./ChartPanel";
 import { ExcelCurveUpload } from "./ExcelCurveUpload";
+import {
+  categoryLabel,
+  electrodeParameterLabel,
+  modelLabel,
+  modelNote,
+  parameterDescription,
+  parameterLabel,
+  terminationLabel,
+  translateTechnicalTerms,
+  unavailableReason,
+  variableLabel,
+} from "./translations";
 import type {
   ExchangeCurrentTables,
   ExperimentInput,
@@ -58,7 +70,7 @@ function loadSaved(): SavedConfiguration[] {
 
 function errorText(error: unknown): string {
   if (error instanceof ApiError) {
-    return [error.message, ...error.details].join("\n");
+    return [error.message, ...error.details].map(translateTechnicalTerms).join("\n");
   }
   return error instanceof Error ? error.message : String(error);
 }
@@ -170,11 +182,11 @@ export default function App() {
       if (raw == null) continue;
       const value = Number(raw);
       if (!Number.isFinite(value)) {
-        messages.push(`${parameter.name}: número no válido.`);
+        messages.push(`${parameterLabel(parameter.name)}: número no válido.`);
         continue;
       }
       const message = constraintMessage(parameter, value);
-      if (message) messages.push(`${parameter.name}: ${message}.`);
+      if (message) messages.push(`${parameterLabel(parameter.name)}: ${translateTechnicalTerms(message)}.`);
     }
     if (!(experiment.temperature_K > 0)) messages.push("La temperatura tiene que ser > 0 K.");
     return messages;
@@ -369,7 +381,9 @@ export default function App() {
   const selectedNote = presets.find((preset) => preset.id === selectedPreset)?.note ?? "";
   const searchTerm = query.trim().toLowerCase();
   const matchesSearch = (parameter: ParameterInfo) =>
-    `${parameter.name} ${parameter.description}`.toLowerCase().includes(searchTerm);
+    `${parameterLabel(parameter.name)} ${parameter.name} ${parameter.description} ${parameterDescription(parameter)}`
+      .toLowerCase()
+      .includes(searchTerm);
   const cellParameters = parameters.filter(
     (parameter) =>
       parameter.category === "Celda" &&
@@ -426,7 +440,7 @@ export default function App() {
       <header>
         <h1>Parametrización de baterías</h1>
         <p>
-          Sodium-ion con PyBaMM {pybammVersion || ""} · BasicDFN · conjunto Chayambuka2022.
+          Ion sodio con PyBaMM {pybammVersion || ""} · BasicDFN · conjunto Chayambuka2022.
           La corriente positiva es descarga.
         </p>
       </header>
@@ -447,7 +461,7 @@ export default function App() {
             >
               {models.map((model) => (
                 <option key={model.id} value={model.id} disabled={!model.implemented}>
-                  {model.name}{model.implemented ? "" : " (no implementado)"}
+                  {modelLabel(model)}{model.implemented ? "" : " (no implementado)"}
                 </option>
               ))}
             </select>
@@ -456,13 +470,15 @@ export default function App() {
             <details className="model-notes">
               <summary>Notas del modelo</summary>
               <ul className="notes">
-                {activeModel.notes.map((note) => <li key={note}>{note}</li>)}
+                {activeModel.notes.map((note) => (
+                  <li key={note}>{modelNote(activeModel, note)}</li>
+                ))}
               </ul>
             </details>
           )}
           <label className="field">
             Buscar
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="espesor, porosidad, OCP…" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="espesor, porosidad, potencial…" />
           </label>
           <div className="toolbar" style={{ alignItems: "end" }}>
             <label className="field">
@@ -489,7 +505,7 @@ export default function App() {
             <div className="cell-parameter-grid">
               {cellParameters.map((parameter) => (
                 <div className="cell-parameter-field" key={parameter.name}>
-                  <strong>{parameter.name}</strong>
+                  <strong>{parameterLabel(parameter.name)}</strong>
                   {renderParameter(parameter, true)}
                 </div>
               ))}
@@ -513,7 +529,7 @@ export default function App() {
                 <span>Cátodo</span>
               </div>
               <div className="electrode-matrix-row">
-                <strong>OCP (V)</strong>
+                <strong>Potencial de circuito abierto (OCP, V)</strong>
                 <ExcelCurveUpload
                   id="ocp-negative"
                   title="Excel del ánodo"
@@ -551,8 +567,12 @@ export default function App() {
               </div>
               <div className="electrode-matrix-row">
                 <strong>Difusividad</strong>
-                <span className="meta">{negativeDiffusivity?.function_summary ?? "Función del conjunto"}</span>
-                <span className="meta">{positiveDiffusivity?.function_summary ?? "Función del conjunto"}</span>
+                <span className="meta">
+                  {negativeDiffusivity ? parameterDescription(negativeDiffusivity) : "Función del conjunto"}
+                </span>
+                <span className="meta">
+                  {positiveDiffusivity ? parameterDescription(positiveDiffusivity) : "Función del conjunto"}
+                </span>
               </div>
               <div className="electrode-matrix-row">
                 <strong>Densidad de intercambio (A/m²)</strong>
@@ -593,7 +613,7 @@ export default function App() {
               </div>
               {electrodeRows.map(([negative, positive]) => (
                 <div className="electrode-matrix-row" key={negative.name}>
-                  <strong>{negative.name.replace(/^Negative electrode |^Negative particle /, "")}</strong>
+                  <strong>{electrodeParameterLabel(negative.name)}</strong>
                   {renderParameter(negative, true)}
                   {positive && renderParameter(positive, true)}
                 </div>
@@ -606,7 +626,7 @@ export default function App() {
             </p>
             {ocpTables && (
               <details className="curve-details">
-                <summary>Ver o editar las tablas OCP cargadas</summary>
+                <summary>Ver o editar las tablas de potencial cargadas</summary>
                 <div className="ocp-blocks">
                   <OcpTableEditor
                     testId="ocp-negative"
@@ -644,7 +664,7 @@ export default function App() {
                 if (!rows.length) return null;
                 return (
                   <details key={category}>
-                    <summary>{category}</summary>
+                    <summary>{categoryLabel(category)}</summary>
                     {rows.map((parameter) => renderParameter(parameter))}
                   </details>
                 );
@@ -681,7 +701,7 @@ export default function App() {
                     })
                   }
                 >
-                  <option value="c_rate">C-rate</option>
+                  <option value="c_rate">Tasa C</option>
                   <option value="current">Corriente (A)</option>
                 </select>
               </label>
@@ -689,7 +709,7 @@ export default function App() {
             <div className="row">
               {experiment.current_mode === "c_rate" ? (
                 <label className="field">
-                  C-rate
+                  Tasa C
                   <input
                     data-testid="c-rate"
                     type="number"
@@ -773,7 +793,7 @@ export default function App() {
               {experiment.type === "cycle"
                 ? " En el ciclo, la corriente cambia de signo con un escalón. BasicDFN no tiene capacitancia de doble capa, así que el voltaje salta al cambiar la corriente."
                 : ""}
-              {" "}El voltaje inicial no es un dato: sale de las concentraciones iniciales y del OCP.
+              {" "}El voltaje inicial no es un dato: sale de las concentraciones iniciales y del potencial de circuito abierto.
             </p>
             <div className="toolbar">
               <button data-testid="run" type="button" disabled={busy} onClick={onRun}>
@@ -798,13 +818,13 @@ export default function App() {
               <label className="field">
                 Eje X
                 <select data-testid="axis-x" value={xKey} onChange={(event) => setXKey(event.target.value)}>
-                  {axisOptions.map((name) => <option key={name}>{name}</option>)}
+                  {axisOptions.map((name) => <option key={name} value={name}>{variableLabel(name)}</option>)}
                 </select>
               </label>
               <label className="field">
                 Eje Y
                 <select data-testid="axis-y" value={yKey} onChange={(event) => setYKey(event.target.value)}>
-                  {axisOptions.map((name) => <option key={name}>{name}</option>)}
+                  {axisOptions.map((name) => <option key={name} value={name}>{variableLabel(name)}</option>)}
                 </select>
               </label>
             </div>
@@ -831,17 +851,23 @@ export default function App() {
             )}
             {runs.filter((run) => run.visible).map((run) => (
               <p key={run.id} className="meta">
-                {run.result.label}: {run.result.termination}. t = {run.result.applied.t_end_s.toFixed(2)} s
-                de {run.result.applied.duration_requested_s} s pedidos.
-                Solver {run.result.solver}, {run.result.elapsed_s.toFixed(2)} s de cálculo,
+                {run.result.label}: {terminationLabel(run.result.termination)}. t = {run.result.applied.t_end_s.toFixed(2)} s
+                de {run.result.applied.duration_requested_s} s solicitados.
+                Solucionador {run.result.solver}, {run.result.elapsed_s.toFixed(2)} s de cálculo,
                 {run.result.n_points} puntos{run.result.downsampled ? " (submuestreados)" : ""}.
-                {run.result.warnings.length ? ` Avisos: ${run.result.warnings.join(" ")}` : ""}
+                {run.result.warnings.length
+                  ? ` Avisos del solucionador: ${run.result.warnings.map(translateTechnicalTerms).join(" ")}`
+                  : ""}
               </p>
             ))}
             <details>
               <summary>Variables que este modelo no calcula</summary>
               <ul className="notes">
-                {unavailable.map((item) => <li key={item.name}><strong>{item.name}.</strong> {item.reason}</li>)}
+                {unavailable.map((item) => (
+                  <li key={item.name}>
+                    <strong>{variableLabel(item.name)}.</strong> {unavailableReason(item.name, item.reason)}
+                  </li>
+                ))}
               </ul>
             </details>
             <details>
@@ -859,7 +885,7 @@ export default function App() {
                       )
                     }
                   />
-                  {item.name}
+                  {variableLabel(item.name)}
                   {item.source === "reduction" ? " · promedio PyBaMM" : ""}
                 </label>
               ))}
@@ -967,16 +993,16 @@ function ParameterRow({
   return (
     <article className={`parameter${compact ? " compact" : ""}`} data-testid={`param-${parameter.name}`}>
       {!compact && <header>
-        <h3>{parameter.name}</h3>
+        <h3>{parameterLabel(parameter.name)}</h3>
         <span className="meta">{parameter.affects_basic_dfn ? "entra en BasicDFN" : "no cambia el DFN"}</span>
       </header>}
       {parameter.type === "function" ? (
-        <p className="meta">{parameter.function_summary}</p>
+        <p className="meta">{parameterDescription(parameter)}</p>
       ) : (
         <>
           <div className="controls">
             <input
-              aria-label={parameter.name}
+              aria-label={parameterLabel(parameter.name)}
               disabled={!parameter.editable}
               type="number"
               step="any"
@@ -1000,7 +1026,7 @@ function ParameterRow({
               }}
             />
             {parameter.unit === "m" ? (
-              <select aria-label={`unidad ${parameter.name}`} value={mode} onChange={(event) => onMode(event.target.value as "si" | "um")}>
+              <select aria-label={`unidad de ${parameterLabel(parameter.name)}`} value={mode} onChange={(event) => onMode(event.target.value as "si" | "um")}>
                 <option value="um">µm</option>
                 <option value="si">m</option>
               </select>
@@ -1015,13 +1041,13 @@ function ParameterRow({
           </div>
           {parameter.original != null && (
             <p className="meta">
-              Original: {formatShown(parameter.original, factor)} {displayLabel(parameter.unit, mode)}
+              Valor del conjunto: {formatShown(parameter.original, factor)} {displayLabel(parameter.unit, mode)}
               {edited && Number.isFinite(Number(raw)) ? ` · modificado: ${formatShown(Number(raw), factor)}` : ""}
             </p>
           )}
         </>
       )}
-      {!compact && parameter.description && <p className="meta">{parameter.description}</p>}
+      {!compact && parameter.description && <p className="meta">{parameterDescription(parameter)}</p>}
       {message && <p className="warn">{message}</p>}
     </article>
   );
@@ -1062,28 +1088,28 @@ function OcpTableEditor({
     <section className="ocp-table" data-testid={testId}>
       <header>
         <h3>{title}</h3>
-        <span className="meta">ocp_tables.{electrode}</span>
+        <span className="meta">{electrode === "negative" ? "Ánodo" : "Cátodo"}</span>
       </header>
       <p className="meta">
-        Filas (sto, V) del interpolante lineal. Mínimo 2 puntos con sto creciente;
-        lista vacía = se mantiene el OCP de Chayambuka2022.
+        Filas de estequiometría y potencial del interpolante lineal. Se requieren al menos
+        2 puntos con estequiometría creciente; sin datos se conserva Chayambuka2022.
       </p>
       <div className="ocp-row ocp-head">
-        <span>sto</span>
-        <span>V (V)</span>
+        <span>Estequiometría (sto)</span>
+        <span>Potencial (V)</span>
         <span />
       </div>
       {points.map((point, index) => (
         <div className="ocp-row" key={index}>
           <input
-            aria-label={`sto fila ${index + 1}`}
+            aria-label={`Estequiometría de la fila ${index + 1}`}
             type="number"
             step="any"
             value={Number.isFinite(point.sto) ? point.sto : ""}
             onChange={(event) => updatePoint(index, { sto: parseOcpNumber(event.target.value) })}
           />
           <input
-            aria-label={`V fila ${index + 1}`}
+            aria-label={`Potencial de la fila ${index + 1}`}
             type="number"
             step="any"
             value={Number.isFinite(point.V) ? point.V : ""}

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import Plotly from "plotly.js-dist-min";
 import type { RunRecord } from "./types";
+import { variableLabel } from "./translations";
 
 const COLORS = ["#1f4e79", "#c45c26", "#2f6f4e", "#6b3fa0", "#8a6a2f", "#8f2d3c"];
 
@@ -32,7 +33,7 @@ export function ChartPanel({ runs, xKey, yKey }: Props) {
           mode: "lines",
           name: run.result.label,
           line: { color: COLORS[index % COLORS.length], width: 2 },
-          hovertemplate: `${run.result.label}<br>${xKey}: %{x}<br>${yKey}: %{y}<extra></extra>`,
+          hovertemplate: `${run.result.label}<br>${variableLabel(xKey)}: %{x}<br>${variableLabel(yKey)}: %{y}<extra></extra>`,
         },
       ];
     });
@@ -41,10 +42,10 @@ export function ChartPanel({ runs, xKey, yKey }: Props) {
       traces,
       {
         margin: { t: 24, r: 16, b: 56, l: 64 },
-        paper_bgcolor: "#f7f4ee",
-        plot_bgcolor: "#fffdf8",
-        xaxis: { title: { text: xKey }, gridcolor: "#e4ddd0" },
-        yaxis: { title: { text: yKey }, gridcolor: "#e4ddd0" },
+        paper_bgcolor: "#fff",
+        plot_bgcolor: "#fff",
+        xaxis: { title: { text: variableLabel(xKey) }, gridcolor: "#e1ebe7" },
+        yaxis: { title: { text: variableLabel(yKey) }, gridcolor: "#e1ebe7" },
         legend: { orientation: "h", y: -0.25 },
         hovermode: "closest",
       },

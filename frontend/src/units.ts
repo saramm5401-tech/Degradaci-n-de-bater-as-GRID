@@ -7,7 +7,17 @@ export function displayFactor(unit: string | null, mode: "si" | "um"): number {
 
 export function displayLabel(unit: string | null, mode: "si" | "um"): string {
   if (unit === "m" && mode === "um") return "µm";
-  return unit ?? "adimensional";
+  const labels: Record<string, string> = {
+    "Ohm": "Ω",
+    "A.h": "A·h",
+    "S.m-1": "S·m⁻¹",
+    "m2.s-1": "m²·s⁻¹",
+    "mol.m-3": "mol·m⁻³",
+    "A.m-2": "A·m⁻²",
+    "V.K-1": "V·K⁻¹",
+    "adimensional": "adimensional",
+  };
+  return unit ? labels[unit] ?? unit : "adimensional";
 }
 
 export function formatShown(si: number, factor: number): string {
@@ -40,7 +50,7 @@ export function constraintMessage(parameter: ParameterInfo, value: number): stri
       key === "ge" ? value >= limit :
       key === "lt" ? value < limit :
       value <= limit;
-    if (!ok) return `${text} ${limit} ${parameter.unit ?? ""}`.trim();
+    if (!ok) return `${text} ${limit} ${displayLabel(parameter.unit, "si")}`.trim();
   }
   return null;
 }

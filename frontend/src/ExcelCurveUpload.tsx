@@ -247,7 +247,7 @@ export function ExcelCurveUpload({
             {table.fileName} · {table.sheetName}
           </span>
           <label className="field">
-            Columna de estequiometría
+            Columna de estequiometría (sto)
             <select
               value={table.stoColumn}
               onChange={(event) => updateColumn("stoColumn", event.target.value)}
@@ -258,7 +258,7 @@ export function ExcelCurveUpload({
             </select>
           </label>
           <label className="field">
-            Columna de {kind === "ocp" ? "OCP (V)" : "j₀ (A/m²)"}
+            Columna de {kind === "ocp" ? "potencial de circuito abierto (V)" : "densidad de corriente de intercambio (j₀, A/m²)"}
             <select
               value={table.valueColumn}
               onChange={(event) => updateColumn("valueColumn", event.target.value)}

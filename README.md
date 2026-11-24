@@ -36,6 +36,7 @@ backend/simulation/outputs.py        Series y promedios. Tope de 2000 puntos.
 backend/validation/checks.py         Autoridad de validación. El frontend solo adelanta las mismas reglas.
 frontend/src/App.tsx                 Formulario en orden celda/electrodos, simulación y resultados.
 frontend/src/ExcelCurveUpload.tsx    Lectura de Excel y selección de columnas de interpolación.
+frontend/src/translations.ts         Etiquetas y descripciones en español; conserva las claves de PyBaMM.
 frontend/src/types.ts                Contratos del cliente, incluidos OcpTables y ExchangeCurrentTables.
 tests/test_sodium_ion.py             Descarga real de 30 s y reglas del catálogo.
 tests/test_presets.py                Contenido del agregado EAFIT.
@@ -61,6 +62,8 @@ No hay Docker, base de datos ni autenticación. Las configuraciones se guardan e
 4. Densidad de intercambio tabulada. `exchange_current_tables` acepta `{sto, j0}` y sustituye la función completa de intercambio del electrodo por un interpolante lineal `j0(sto)` en A·m⁻². Esta opción no conserva los factores de concentración de la función original ni introduce una dependencia térmica tabulada; la interfaz lo advierte. La función original recibe temperatura, pero no la usa. Si no se carga tabla, sigue la función Chayambuka2022. La difusividad no se sustituye. Los Excel de OCP/j₀ no contienen geometría.
 
 5. Trazabilidad de interfaz y configuración. Las tablas importadas viajan con cada simulación y se incluyen en el JSON descargado, `localStorage` y las configuraciones en memoria del backend. Los OCP cargados se pueden revisar y editar en la interfaz; se pueden quitar tablas por electrodo para volver a la función del conjunto base.
+
+6. Interfaz en español. Los nombres de modelos, parámetros, variables de resultados, descripciones, validaciones y ejes de las gráficas se presentan en español. Las claves originales de parámetros y variables se conservan internamente para las solicitudes a PyBaMM y para no romper configuraciones existentes.
 
 ## Decisiones que no hay que reabrir
 
